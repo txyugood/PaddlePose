@@ -1,4 +1,5 @@
 import os
+import time
 
 import paddle
 
@@ -6,6 +7,7 @@ from dataset import TopDownMpiiDataset
 from transforms import LoadImageFromFile, TopDownRandomFlip, TopDownAffine, TopDownGetRandomScaleRotation, \
     TopDownGenerateTarget, Compose, Collect, NormalizeTensor
 from top_down import TopDown
+from timer import TimeAverager, calculate_eta
 
 if __name__ == '__main__':
     tranforms = [
@@ -38,18 +40,18 @@ if __name__ == '__main__':
                                  img_prefix='/Users/alex/baidu/mmpose/data/mpii/images',
                                  pipeline=val_tranforms, test_mode=True)
 
-
+    batch_size = 64
     train_loader = paddle.io.DataLoader(
         dataset,
         num_workers=0,
-        batch_size=2,
+        batch_size=batch_size,
         shuffle=True,
         drop_last=True,
         return_list=True,
     )
 
     val_loader = paddle.io.DataLoader(val_dataset,
-                                      batch_size=2,shuffle=False,drop_last=False,return_list=True)
+                                      batch_size=batch_size // 2,shuffle=False,drop_last=False,return_list=True)
 
     model = TopDown()
     learning_rate = paddle.optimizer.lr.MultiStepDecay(
@@ -60,36 +62,65 @@ if __name__ == '__main__':
         start_lr=0,
         end_lr=5e-4)
     optimizer = paddle.optimizer.Adam(parameters=model.parameters(), learning_rate=lr)
+
+    avg_loss = 0.0
     max_epochs = 210
     epoch = 0
     best_mean = 0
+    log_iters = 2
+    reader_cost_averager = TimeAverager()
+    batch_cost_averager = TimeAverager()
+    iters_per_epoch = len(train_loader)
+    iters = iters_per_epoch * max_epochs
+    iter = 0
+    batch_start = time.time()
     while epoch < max_epochs:
-        for batch_id, data in enumerate(train_loader):
-            model.train()
-            output = model.train_step(data, optimizer)
-            loss = output['loss']
-            loss.backward()
-            optimizer.step()
-            model.clear_gradients()
-            lr.step()
-            log_vars = output['log_vars']
-            print(f'epoch:{epoch} batch_id:{batch_id} lr:{optimizer.get_lr()} loss:{log_vars["mse_loss"]} acc_pose:{log_vars["acc_pose"]}')
-        i = 0
+
+        # model.train()
+        # for batch_id, data in enumerate(train_loader):
+        #     reader_cost_averager.record(time.time() - batch_start)
+        #     iter += 1
+        #     output = model.train_step(data, optimizer)
+        #     loss = output['loss']
+        #     loss.backward()
+        #     optimizer.step()
+        #     model.clear_gradients()
+        #     avg_loss += loss.numpy()[0]
+        #     lr.step()
+        #     batch_cost_averager.record(
+        #         time.time() - batch_start, num_samples=batch_size)
+        #     log_vars = output['log_vars']
+        #     if (iter) % log_iters == 0:
+        #         avg_loss /= log_iters
+        #         remain_iters = iters - iter
+        #         avg_train_batch_cost = batch_cost_averager.get_average()
+        #         avg_train_reader_cost = reader_cost_averager.get_average()
+        #         eta = calculate_eta(remain_iters, avg_train_batch_cost)
+        #
+        #         print(
+        #             "[TRAIN] epoch={}, batch_id={}, loss={:.6f}, lr={:.6f},acc_pose={:.3f} ETA {}"
+        #                 .format(epoch, batch_id,
+        #                         avg_loss, optimizer.get_lr(), log_vars["acc_pose"], eta))
+        #         avg_loss = 0.0
+        #         reader_cost_averager.reset()
+        #         batch_cost_averager.reset()
+        #
+        #     # print(f'epoch:{epoch} batch_id:{batch_id} lr:{optimizer.get_lr()} loss:{log_vars["mse_loss"]} acc_pose:{log_vars["acc_pose"]}')
+        #     batch_start = time.time()
+
+        model.eval()
         results = []
         for data in val_loader:
-            if i > 2:
-                break
-            model.eval()
             with paddle.no_grad():
                 result = model(return_loss=False, **data)
             results.append(result)
-            i += 1
+
         work_dir = './output'
         if not os.path.exists(work_dir):
             os.makedirs(work_dir)
         eval_config = {'interval': 10, 'metric': 'PCKh', 'save_best': 'PCKh'}
         results = val_dataset.evaluate(results, work_dir, **eval_config)
-        print(f'{epoch}:',end='')
+        print(f'[TRAIN] {epoch}:',end='')
         for k, v in sorted(results.items()):
             print(f'{k}: {v} ', end='')
         print('\n')

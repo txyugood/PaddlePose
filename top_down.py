@@ -134,7 +134,19 @@ class TopDown(BasePose):
         new_img_metas = [{} for _ in range(img.shape[0])]
         for key in img_metas.keys():
             for i in range(img.shape[0]):
-                new_img_metas[i][key] = img_metas[key][i]
+                if key != 'flip_pairs':
+                    if key == 'center' or key == 'scale':
+                        new_img_metas[i][key] = img_metas[key][i].detach().numpy()
+                    elif key == 'bbox_id' or key == 'rotation':
+                        new_img_metas[i][key] = int(img_metas[key][i].detach().numpy()[0])
+                    else:
+                        new_img_metas[i][key] = img_metas[key][i]
+                else:
+                    flip_pairs = img_metas[key]
+                    new_flip_paris = []
+                    for flip_pair in flip_pairs:
+                        new_flip_paris.append([flip_pair[0][i].detach().numpy()[0], flip_pair[1][i].detach().numpy()[0]])
+                    new_img_metas[i][key] = new_flip_paris
 
         img_metas = new_img_metas
         assert img.shape[0] == len(img_metas)
