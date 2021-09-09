@@ -171,9 +171,9 @@ class TopDownMpiiDataset(paddle.io.Dataset):
             os.path.dirname(self.ann_file), 'mpii_gt_val.mat')
         gt_dict = loadmat(gt_file)
         dataset_joints = gt_dict['dataset_joints']
-        jnt_missing = gt_dict['jnt_missing'][:,:6]
-        pos_gt_src = gt_dict['pos_gt_src'][:,:,:6]
-        headboxes_src = gt_dict['headboxes_src'][:,:,:6]
+        jnt_missing = gt_dict['jnt_missing']
+        pos_gt_src = gt_dict['pos_gt_src']
+        headboxes_src = gt_dict['headboxes_src']
 
         pos_pred_src = np.transpose(preds, [1, 2, 0])
 
@@ -228,8 +228,8 @@ class TopDownMpiiDataset(paddle.io.Dataset):
                       ('Hip', 0.5 * (PCKh[lhip] + PCKh[rhip])),
                       ('Knee', 0.5 * (PCKh[lkne] + PCKh[rkne])),
                       ('Ankle', 0.5 * (PCKh[lank] + PCKh[rank])),
-                      ('PCKh', np.sum(PCKh * jnt_ratio)),
-                      ('PCKh@0.1', np.sum(pckAll[10, :] * jnt_ratio))]
+                      ('Mean', np.sum(PCKh * jnt_ratio)),
+                      ('Mean@0.1', np.sum(pckAll[10, :] * jnt_ratio))]
         name_value = OrderedDict(name_value)
 
         return name_value

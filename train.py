@@ -24,8 +24,8 @@ if __name__ == '__main__':
                     'rotation', 'flip_pairs'
                 ])
     ]
-    dataset = TopDownMpiiDataset(ann_file='/Users/alex/baidu/mmpose/data/mpii/annotations/mpii_train.json',
-                                 img_prefix='/Users/alex/baidu/mmpose/data/mpii/images',
+    dataset = TopDownMpiiDataset(ann_file='/home/aistudio/data/mpii/annotations/mpii_train.json',
+                                 img_prefix='/home/aistudio/data/mpii/images',
                                  pipeline=tranforms)
 
     val_tranforms=[
@@ -36,8 +36,8 @@ if __name__ == '__main__':
         Collect(keys=['img'],
                 meta_keys=['image_file', 'center', 'scale', 'rotation', 'flip_pairs'])
     ]
-    val_dataset = TopDownMpiiDataset(ann_file='/Users/alex/baidu/mmpose/data/mpii/annotations/mpii_val.json',
-                                 img_prefix='/Users/alex/baidu/mmpose/data/mpii/images',
+    val_dataset = TopDownMpiiDataset(ann_file='/home/aistudio/data/mpii/annotations/mpii_val.json',
+                                 img_prefix='/home/aistudio/data/mpii/images',
                                  pipeline=val_tranforms, test_mode=True)
 
     batch_size = 64
@@ -54,8 +54,10 @@ if __name__ == '__main__':
                                       batch_size=batch_size // 2,shuffle=False,drop_last=False,return_list=True)
 
     model = TopDown()
+
+    iters_per_epoch = len(train_loader)
     learning_rate = paddle.optimizer.lr.MultiStepDecay(
-        learning_rate=5e-4, milestones=[170, 200], gamma=0.1)
+        learning_rate=5e-4, milestones=[170 * iters_per_epoch, 200 * iters_per_epoch], gamma=0.1)
     lr = paddle.optimizer.lr.LinearWarmup(
         learning_rate=learning_rate,
         warmup_steps=500,
@@ -64,49 +66,53 @@ if __name__ == '__main__':
     optimizer = paddle.optimizer.Adam(parameters=model.parameters(), learning_rate=lr)
 
     avg_loss = 0.0
+    avg_pose_acc = 0.0
     max_epochs = 210
     epoch = 0
     best_mean = 0
-    log_iters = 2
+    log_iters = 10
     reader_cost_averager = TimeAverager()
     batch_cost_averager = TimeAverager()
-    iters_per_epoch = len(train_loader)
+    
     iters = iters_per_epoch * max_epochs
     iter = 0
     batch_start = time.time()
     while epoch < max_epochs:
 
-        # model.train()
-        # for batch_id, data in enumerate(train_loader):
-        #     reader_cost_averager.record(time.time() - batch_start)
-        #     iter += 1
-        #     output = model.train_step(data, optimizer)
-        #     loss = output['loss']
-        #     loss.backward()
-        #     optimizer.step()
-        #     model.clear_gradients()
-        #     avg_loss += loss.numpy()[0]
-        #     lr.step()
-        #     batch_cost_averager.record(
-        #         time.time() - batch_start, num_samples=batch_size)
-        #     log_vars = output['log_vars']
-        #     if (iter) % log_iters == 0:
-        #         avg_loss /= log_iters
-        #         remain_iters = iters - iter
-        #         avg_train_batch_cost = batch_cost_averager.get_average()
-        #         avg_train_reader_cost = reader_cost_averager.get_average()
-        #         eta = calculate_eta(remain_iters, avg_train_batch_cost)
-        #
-        #         print(
-        #             "[TRAIN] epoch={}, batch_id={}, loss={:.6f}, lr={:.6f},acc_pose={:.3f} ETA {}"
-        #                 .format(epoch, batch_id,
-        #                         avg_loss, optimizer.get_lr(), log_vars["acc_pose"], eta))
-        #         avg_loss = 0.0
-        #         reader_cost_averager.reset()
-        #         batch_cost_averager.reset()
-        #
-        #     # print(f'epoch:{epoch} batch_id:{batch_id} lr:{optimizer.get_lr()} loss:{log_vars["mse_loss"]} acc_pose:{log_vars["acc_pose"]}')
-        #     batch_start = time.time()
+        model.train()
+        for batch_id, data in enumerate(train_loader):
+            reader_cost_averager.record(time.time() - batch_start)
+            iter += 1
+            output = model.train_step(data, optimizer)
+            loss = output['loss']
+            loss.backward()
+            optimizer.step()
+            model.clear_gradients()
+            avg_loss += loss.numpy()[0]
+            log_vars = output['log_vars']
+            avg_pose_acc += log_vars["acc_pose"]
+            lr.step()
+            batch_cost_averager.record(
+                time.time() - batch_start, num_samples=batch_size)
+            if (iter) % log_iters == 0:
+                avg_loss /= log_iters
+                avg_pose_acc /= log_iters
+                remain_iters = iters - iter
+                avg_train_batch_cost = batch_cost_averager.get_average()
+                avg_train_reader_cost = reader_cost_averager.get_average()
+                eta = calculate_eta(remain_iters, avg_train_batch_cost)
+        
+                print(
+                    "[TRAIN] epoch={}, batch_id={}, loss={:.6f}, lr={:.6f},acc_pose={:.3f} ETA {}"
+                        .format(epoch, batch_id + 1,
+                                avg_loss, optimizer.get_lr(), avg_pose_acc, eta))
+                avg_loss = 0.0
+                avg_pose_acc = 0.0
+                reader_cost_averager.reset()
+                batch_cost_averager.reset()
+        
+            # print(f'epoch:{epoch} batch_id:{batch_id} lr:{optimizer.get_lr()} loss:{log_vars["mse_loss"]} acc_pose:{log_vars["acc_pose"]}')
+            batch_start = time.time()
 
         model.eval()
         results = []
@@ -120,12 +126,12 @@ if __name__ == '__main__':
             os.makedirs(work_dir)
         eval_config = {'interval': 10, 'metric': 'PCKh', 'save_best': 'PCKh'}
         results = val_dataset.evaluate(results, work_dir, **eval_config)
-        print(f'[TRAIN] {epoch}:',end='')
+        print(f'[EVAL] epoch={epoch}:',end='')
         for k, v in sorted(results.items()):
-            print(f'{k}: {v} ', end='')
-        print('\n')
-        if results['PCKh@0.1'] > best_mean:
-            best_mean = results['PCKh@0.1']
+            print(f'{k}={v} ', end='')
+        print('')
+        if results['Mean@0.1'] > best_mean:
+            best_mean = results['Mean@0.1']
             current_save_dir = os.path.join(work_dir, 'best_model')
             if not os.path.exists(current_save_dir):
                 os.makedirs(current_save_dir)
