@@ -1,5 +1,6 @@
 import os
 import time
+import argparse
 
 import paddle
 
@@ -9,7 +10,20 @@ from transforms import LoadImageFromFile, TopDownRandomFlip, TopDownAffine, TopD
 from top_down import TopDown
 from timer import TimeAverager, calculate_eta
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Model training')
+    # params of training
+    parser.add_argument(
+        '--image_size',
+        dest='image_size',
+        help='image size for sample',
+        type=int,
+        default=256)
+
+    return parser.parse_args()
+
 if __name__ == '__main__':
+    args = parse_args()
     tranforms = [
         LoadImageFromFile(),
         TopDownRandomFlip(flip_prob=0.5),
@@ -26,7 +40,7 @@ if __name__ == '__main__':
     ]
     dataset = TopDownMpiiDataset(ann_file='/home/aistudio/data/mpii/annotations/mpii_train.json',
                                  img_prefix='/home/aistudio/data/mpii/images',
-                                 pipeline=tranforms)
+                                 pipeline=tranforms, image_size=args.image_size)
 
     val_tranforms=[
         LoadImageFromFile(),
@@ -38,7 +52,7 @@ if __name__ == '__main__':
     ]
     val_dataset = TopDownMpiiDataset(ann_file='/home/aistudio/data/mpii/annotations/mpii_val.json',
                                  img_prefix='/home/aistudio/data/mpii/images',
-                                 pipeline=val_tranforms, test_mode=True)
+                                 pipeline=val_tranforms, image_size=args.image_size, test_mode=True)
 
     batch_size = 64
     train_loader = paddle.io.DataLoader(

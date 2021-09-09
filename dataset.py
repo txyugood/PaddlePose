@@ -15,6 +15,7 @@ class TopDownMpiiDataset(paddle.io.Dataset):
     def __init__(self, ann_file,
                  img_prefix,
                  pipeline,
+                 image_size=256,
                  test_mode=False):
 
         self.image_info = {}
@@ -24,8 +25,12 @@ class TopDownMpiiDataset(paddle.io.Dataset):
         self.ann_file = ann_file
         self.test_mode = test_mode
 
-        self.ann_info['image_size'] = np.array([256, 256])
-        self.ann_info['heatmap_size'] = np.array([64, 64])
+        self.ann_info['image_size'] = np.array([image_size, image_size])
+        if image_size == 256:
+            heatmap_size = 64
+        else:
+            heatmap_size = 96
+        self.ann_info['heatmap_size'] = np.array([heatmap_size, heatmap_size])
         self.ann_info['num_joints'] = 16
 
         self.ann_info['flip_pairs'] = None
