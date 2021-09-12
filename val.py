@@ -53,7 +53,7 @@ if __name__ == '__main__':
                                      img_prefix=os.path.join(args.dataset_root, 'images'),
                                      pipeline=val_tranforms, image_size=args.image_size, test_mode=True)
 
-    batch_size = 2
+    batch_size = 32
     val_loader = paddle.io.DataLoader(val_dataset,
                                       batch_size=batch_size, shuffle=False, drop_last=False, return_list=True)
 
