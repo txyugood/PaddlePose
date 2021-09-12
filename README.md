@@ -33,6 +33,7 @@ tail -f hourglass_384x384.log
 ```
 
 --image_size 指定训练出入的图片分辨率，根据验收指标这里可以输入256或384。
+
 --dataset_root 为数据集根目录，可以根据实际情况修改。
 
 以上在后台训练模型，并输出日志到hourglass_xxx.log文件，通过tail命令实时查看训练日志。
