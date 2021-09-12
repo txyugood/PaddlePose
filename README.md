@@ -8,6 +8,13 @@ size:256x256, mean@0.1: 0.317
 
 MPII:[https://aistudio.baidu.com/aistudio/datasetdetail/107551](https://aistudio.baidu.com/aistudio/datasetdetail/107551)
 
+数据集解压。
+
+```
+cd /home/aistudio/data
+tar xvf mpii.tar.gz
+```
+
 # 3.环境
 
 PaddlePaddle == 2.1.2
