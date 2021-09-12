@@ -20,6 +20,13 @@ def parse_args():
         type=int,
         default=256)
 
+    parser.add_argument(
+        '--dataset_root',
+        dest='dataset_root',
+        help='The path of dataset root',
+        type=str,
+        default=None)
+
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -38,8 +45,8 @@ if __name__ == '__main__':
                     'rotation', 'flip_pairs'
                 ])
     ]
-    dataset = TopDownMpiiDataset(ann_file='/home/aistudio/data/mpii/annotations/mpii_train.json',
-                                 img_prefix='/home/aistudio/data/mpii/images',
+    dataset = TopDownMpiiDataset(ann_file=os.path.join(args.dataset_root, 'annotations/mpii_train.json'),
+                                 img_prefix=os.path.join(args.dataset_root, 'images'),
                                  pipeline=tranforms, image_size=args.image_size)
 
     val_tranforms=[
@@ -50,8 +57,8 @@ if __name__ == '__main__':
         Collect(keys=['img'],
                 meta_keys=['image_file', 'center', 'scale', 'rotation', 'flip_pairs'])
     ]
-    val_dataset = TopDownMpiiDataset(ann_file='/home/aistudio/data/mpii/annotations/mpii_val.json',
-                                 img_prefix='/home/aistudio/data/mpii/images',
+    val_dataset = TopDownMpiiDataset(ann_file=os.path.join(args.dataset_root, 'annotations/mpii_val.json'),
+                                 img_prefix=os.path.join(args.dataset_root, 'images'),
                                  pipeline=val_tranforms, image_size=args.image_size, test_mode=True)
 
     batch_size = 64

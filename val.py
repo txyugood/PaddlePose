@@ -29,6 +29,13 @@ def parse_args():
         type=str,
         default='./output/best_model/model.pdparams')
 
+    parser.add_argument(
+        '--dataset_root',
+        dest='dataset_root',
+        help='The path of dataset root',
+        type=str,
+        default=None)
+
     return parser.parse_args()
 
 
@@ -42,8 +49,8 @@ if __name__ == '__main__':
         Collect(keys=['img'],
                 meta_keys=['image_file', 'center', 'scale', 'rotation', 'flip_pairs'])
     ]
-    val_dataset = TopDownMpiiDataset(ann_file='/Users/alex/baidu/mmpose/data/mpii/annotations/mpii_val.json',
-                                     img_prefix='/Users/alex/baidu/mmpose/data/mpii/images',
+    val_dataset = TopDownMpiiDataset(ann_file=os.path.join(args.dataset_root, 'annotations/mpii_val.json'),
+                                     img_prefix=os.path.join(args.dataset_root, 'images'),
                                      pipeline=val_tranforms, image_size=args.image_size, test_mode=True)
 
     batch_size = 2
